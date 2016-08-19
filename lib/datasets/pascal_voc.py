@@ -5,6 +5,8 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
+import sys
+sys.path.insert(0, 'lib')
 import os
 from datasets.imdb import imdb
 import datasets.ds_utils as ds_utils
@@ -18,6 +20,7 @@ import subprocess
 import uuid
 from voc_eval import voc_eval
 from fast_rcnn.config import cfg
+import string
 
 class pascal_voc(imdb):
     def __init__(self, image_set, year, devkit_path=None):
@@ -27,12 +30,14 @@ class pascal_voc(imdb):
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
         self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
-        self._classes = ('__background__', # always index 0
-                         'aeroplane', 'bicycle', 'bird', 'boat',
-                         'bottle', 'bus', 'car', 'cat', 'chair',
-                         'cow', 'diningtable', 'dog', 'horse',
-                         'motorbike', 'person', 'pottedplant',
-                         'sheep', 'sofa', 'train', 'tvmonitor')
+
+        # positive classes: 0-9 and a-z
+        self._classes = map(str, range(10)) + [u for u in string.lowercase]
+        self._classes.insert(0, '__background__')
+        self._classes = tuple(self._classes)
+
+        assert len(self._classes) == 37
+
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
