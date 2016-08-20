@@ -13,7 +13,7 @@ import numpy as np
 import scipy.sparse
 import scipy.io as sio
 import utils.cython_bbox
-import cPickle
+import hickle
 import subprocess
 import uuid
 from voc_eval import voc_eval
@@ -98,15 +98,14 @@ class pascal_voc(imdb):
         """
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         if os.path.exists(cache_file):
-            with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
+            roidb = hickle.load(cache_file)
             print '{} gt roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
         gt_roidb = [self._load_pascal_annotation(index)
                     for index in self.image_index]
-        with open(cache_file, 'wb') as fid:
-            cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
+        with open(cache_file, 'w') as fid:
+            hickle.dump(gt_roidb, fid)
         print 'wrote gt roidb to {}'.format(cache_file)
 
         return gt_roidb
@@ -122,8 +121,7 @@ class pascal_voc(imdb):
                                   self.name + '_selective_search_roidb.pkl')
 
         if os.path.exists(cache_file):
-            with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
+            roidb = hickle.load(cache_file)
             print '{} ss roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
@@ -133,8 +131,8 @@ class pascal_voc(imdb):
             roidb = imdb.merge_roidbs(gt_roidb, ss_roidb)
         else:
             roidb = self._load_selective_search_roidb(None)
-        with open(cache_file, 'wb') as fid:
-            cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
+        with open(cache_file, 'w') as fid:
+            hickle.dump(roidb, fid)
         print 'wrote ss roidb to {}'.format(cache_file)
 
         return roidb
@@ -154,8 +152,7 @@ class pascal_voc(imdb):
         print 'loading {}'.format(filename)
         assert os.path.exists(filename), \
                'rpn data not found at: {}'.format(filename)
-        with open(filename, 'rb') as f:
-            box_list = cPickle.load(f)
+        box_list = hickle.load(filename)
         return self.create_roidb_from_box_list(box_list, gt_roidb)
 
     def _load_selective_search_roidb(self, gt_roidb):
@@ -286,7 +283,7 @@ class pascal_voc(imdb):
             aps += [ap]
             print('AP for {} = {:.4f}'.format(cls, ap))
             with open(os.path.join(output_dir, cls + '_pr.pkl'), 'w') as f:
-                cPickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+                hickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
         print('Mean AP = {:.4f}'.format(np.mean(aps)))
         print('~~~~~~~~')
         print('Results:')

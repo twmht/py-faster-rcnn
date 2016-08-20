@@ -23,7 +23,7 @@ import pprint
 import numpy as np
 import sys, os
 import multiprocessing as mp
-import cPickle
+import hickle
 import shutil
 
 def parse_args():
@@ -77,8 +77,8 @@ def get_solvers(net_name):
                [net_name, n, 'stage2_fast_rcnn_solver30k40k.pt']]
     solvers = [os.path.join(cfg.MODELS_DIR, *s) for s in solvers]
     # Iterations for each training stage
-    max_iters = [80000, 40000, 80000, 40000]
-    # max_iters = [100, 100, 100, 100]
+    #  max_iters = [80000, 40000, 80000, 40000]
+    max_iters = [100, 100, 100, 100]
     # Test prototxt for the RPN
     rpn_test_prototxt = os.path.join(
         cfg.MODELS_DIR, net_name, n, 'rpn_test.pt')
@@ -165,8 +165,8 @@ def rpn_generate(queue=None, imdb_name=None, rpn_model_path=None, cfg=None,
     rpn_net_name = os.path.splitext(os.path.basename(rpn_model_path))[0]
     rpn_proposals_path = os.path.join(
         output_dir, rpn_net_name + '_proposals.pkl')
-    with open(rpn_proposals_path, 'wb') as f:
-        cPickle.dump(rpn_proposals, f, cPickle.HIGHEST_PROTOCOL)
+    with open(rpn_proposals_path, 'w') as f:
+        hickle.dump(rpn_proposals, f)
     print 'Wrote RPN proposals to {}'.format(rpn_proposals_path)
     queue.put({'proposal_path': rpn_proposals_path})
 
