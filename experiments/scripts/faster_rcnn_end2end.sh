@@ -56,6 +56,15 @@ time ./tools/train_net.py --gpu ${GPU_ID} \
   --cfg experiments/cfgs/faster_rcnn_end2end.yml \
   ${EXTRA_ARGS}
 
+# resume training from snapshot
+# time ./tools/train_net.py --gpu ${GPU_ID} \
+  # --solver models/${PT_DIR}/${NET}/faster_rcnn_end2end/solver.prototxt \
+  # --snapshot zf_faster_rcnn_iter_200.solverstate \
+  # --imdb ${TRAIN_IMDB} \
+  # --iters ${ITERS} \
+  # --cfg experiments/cfgs/faster_rcnn_end2end.yml \
+  # ${EXTRA_ARGS}
+
 set +x
 NET_FINAL=`grep -B 1 "done solving" ${LOG} | grep "Wrote snapshot" | awk '{print $4}'`
 set -x
