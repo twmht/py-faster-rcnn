@@ -19,6 +19,7 @@ class imdb(object):
     def __init__(self, name):
         self._name = name
         self._num_classes = 0
+        self._num_images = None
         self._classes = []
         self._image_index = []
         self._obj_proposer = 'selective_search'
@@ -76,7 +77,7 @@ class imdb(object):
 
     @property
     def num_images(self):
-      return len(self.image_index)
+        raise NotImplementedError
 
     def image_path_at(self, i):
         raise NotImplementedError
@@ -96,13 +97,11 @@ class imdb(object):
         raise NotImplementedError
 
     def _get_widths(self):
-      return [PIL.Image.open(self.image_path_at(i)).size[0]
-              for i in xrange(self.num_images)]
+      return [roi['width'] for roi in self.roidb]
 
     def append_flipped_images(self):
-        num_images = self.num_images
         widths = self._get_widths()
-        for i in xrange(num_images):
+        for i in xrange(len(self.roidb)):
             boxes = self.roidb[i]['boxes'].copy()
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()
@@ -112,9 +111,13 @@ class imdb(object):
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],
                      'gt_classes' : self.roidb[i]['gt_classes'],
-                     'flipped' : True}
+                     'flipped' : True,
+                     'db_name': self.roidb[i]['db_name'],
+                     'image': self.roidb[i]['image'],
+                     'width': self.roidb[i]['width'],
+                     'height': self.roidb[i]['height']
+                     }
             self.roidb.append(entry)
-        self._image_index = self._image_index * 2
 
     def evaluate_recall(self, candidate_boxes=None, thresholds=None,
                         area='all', limit=None):
@@ -208,7 +211,7 @@ class imdb(object):
 
     def create_roidb_from_box_list(self, box_list, gt_roidb):
         assert len(box_list) == self.num_images, \
-                'Number of boxes must match number of ground-truth images'
+                'Number of boxes must match number of ground-truth images %d != %d' %(len(box_list), num_images)
         roidb = []
         for i in xrange(self.num_images):
             boxes = box_list[i]

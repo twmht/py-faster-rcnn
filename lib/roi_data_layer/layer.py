@@ -55,17 +55,22 @@ class RoIDataLayer(caffe.Layer):
         If cfg.TRAIN.USE_PREFETCH is True, then blobs will be computed in a
         separate process and made available through self._blob_queue.
         """
+
+
         if cfg.TRAIN.USE_PREFETCH:
             return self._blob_queue.get()
         else:
             db_inds = self._get_next_minibatch_inds()
             minibatch_db = [self._roidb[i] for i in db_inds]
-            return get_minibatch(minibatch_db, self._num_classes)
+            return get_minibatch(minibatch_db, self._num_classes, self._image_txns)
 
-    def set_roidb(self, roidb):
+    def set_roidb(self, roidb, image_txns):
         """Set the roidb to be used by this layer during training."""
         self._roidb = roidb
+        self._image_txns = image_txns
         self._shuffle_roidb_inds()
+
+
         if cfg.TRAIN.USE_PREFETCH:
             self._blob_queue = Queue(10)
             self._prefetch_process = BlobFetcher(self._blob_queue,
@@ -109,6 +114,8 @@ class RoIDataLayer(caffe.Layer):
             # rois blob: holds R regions of interest, each is a 5-tuple
             # (n, x1, y1, x2, y2) specifying an image batch index n and a
             # rectangle (x1, y1, x2, y2)
+            print 'num_classes'
+            print self._num_classes
             top[idx].reshape(1, 5)
             self._name_to_top_map['rois'] = idx
             idx += 1

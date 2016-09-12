@@ -24,7 +24,7 @@ class SolverWrapper(object):
     """
 
     def __init__(self, solver_prototxt, roidb, output_dir,
-                 pretrained_model=None, previous_state=None):
+                 pretrained_model=None, image_txns=None):
         """Initialize the SolverWrapper."""
         self.output_dir = output_dir
 
@@ -45,17 +45,12 @@ class SolverWrapper(object):
             print ('Loading pretrained model '
                    'weights from {:s}').format(pretrained_model)
             self.solver.net.copy_from(pretrained_model)
-        elif previous_state is not None:
-            print ('Restoring State from '
-                      ' from {:s}').format(previous_state)
-            self.solver.restore(previous_state)
-
 
         self.solver_param = caffe_pb2.SolverParameter()
         with open(solver_prototxt, 'rt') as f:
             pb2.text_format.Merge(f.read(), self.solver_param)
 
-        self.solver.net.layers[0].set_roidb(roidb)
+        self.solver.net.layers[0].set_roidb(roidb, image_txns)
 
     def snapshot(self):
         """Take a snapshot of the network after unnormalizing the learned
@@ -154,12 +149,12 @@ def filter_roidb(roidb):
     return filtered_roidb
 
 def train_net(solver_prototxt, roidb, output_dir,
-              pretrained_model=None, max_iters=40000, previous_state=None):
+              pretrained_model=None, max_iters=40000, image_txns=None):
     """Train a Fast R-CNN network."""
 
     roidb = filter_roidb(roidb)
     sw = SolverWrapper(solver_prototxt, roidb, output_dir,
-                       pretrained_model=pretrained_model, previous_state=previous_state)
+                       pretrained_model=pretrained_model, image_txns=image_txns)
 
     print 'Solving...'
     model_paths = sw.train_model(max_iters)

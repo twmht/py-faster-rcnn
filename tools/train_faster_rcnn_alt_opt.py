@@ -14,17 +14,20 @@ Proposal Networks." Shaoqing Ren, Kaiming He, Ross Girshick, Jian Sun.)
 """
 
 import _init_paths
-from fast_rcnn.train import get_training_roidb, train_net
-from fast_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
-from datasets.factory import get_imdb
-from rpn.generate import imdb_proposals
 import argparse
-import pprint
-import numpy as np
-import sys, os
-import multiprocessing as mp
 import hickle
+import lmdb
+import multiprocessing as mp
+import numpy as np
+import pprint
 import shutil
+import sys, os
+
+from datasets.common import common
+from datasets.factory import get_imdb
+from fast_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from fast_rcnn.train import get_training_roidb, train_net
+from rpn.generate import imdb_proposals
 
 def parse_args():
     """
@@ -58,7 +61,7 @@ def parse_args():
     return args
 
 def get_roidb(imdb_name, rpn_file=None):
-    imdb = get_imdb(imdb_name)
+    imdb = common(imdb_name)
     print 'Loaded dataset `{:s}` for training'.format(imdb.name)
     imdb.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
     print 'Set proposal method: {:s}'.format(cfg.TRAIN.PROPOSAL_METHOD)
@@ -124,9 +127,22 @@ def train_rpn(queue=None, imdb_name=None, init_model=None, solver=None,
     output_dir = get_output_dir(imdb)
     print 'Output will be saved to `{:s}`'.format(output_dir)
 
+    #  envs = [lmdb.open(os.path.join(imdb._image_loc, image_db)) for image_db in imdb.db_names]
+    #  txns = [env.begin() for env in envs]
+    envs = []
+    txns = {}
+    for image_db in imdb.db_names:
+        env = lmdb.open(os.path.join(imdb._image_loc, image_db), readonly=True)
+        txn = env.begin()
+        envs.append(env)
+        txns[image_db] = txn
+
+
     model_paths = train_net(solver, roidb, output_dir,
                             pretrained_model=init_model,
-                            max_iters=max_iters)
+                            max_iters=max_iters, image_txns=txns)
+    for env in envs:
+        env.close()
     # Cleanup all but the final model
     for i in model_paths[:-1]:
         os.remove(i)
@@ -159,7 +175,16 @@ def rpn_generate(queue=None, imdb_name=None, rpn_model_path=None, cfg=None,
     output_dir = get_output_dir(imdb)
     print 'Output will be saved to `{:s}`'.format(output_dir)
     # Generate proposals on the imdb
-    rpn_proposals = imdb_proposals(rpn_net, imdb)
+    envs = []
+    txns = {}
+    for image_db in imdb.db_names:
+        env = lmdb.open(os.path.join(imdb.image_loc, image_db), readonly=True)
+        txn = env.begin()
+        envs.append(env)
+        txns[image_db] = txn
+    rpn_proposals = imdb_proposals(rpn_net, imdb, txns)
+    for env in envs:
+        env.close()
     # Write proposals to disk and send the proposal file path through the
     # multiprocessing queue
     rpn_net_name = os.path.splitext(os.path.basename(rpn_model_path))[0]
@@ -186,13 +211,26 @@ def train_fast_rcnn(queue=None, imdb_name=None, init_model=None, solver=None,
     import caffe
     _init_caffe(cfg)
 
+    envs = []
+    txns = {}
+    imdb = get_imdb(imdb_name)
+    for image_db in imdb.db_names:
+        env = lmdb.open(os.path.join(imdb.image_loc, image_db), readonly=True)
+        txn = env.begin()
+        envs.append(env)
+        txns[image_db] = txn
+
     roidb, imdb = get_roidb(imdb_name, rpn_file=rpn_file)
     output_dir = get_output_dir(imdb)
     print 'Output will be saved to `{:s}`'.format(output_dir)
     # Train Fast R-CNN
     model_paths = train_net(solver, roidb, output_dir,
                             pretrained_model=init_model,
-                            max_iters=max_iters)
+                            max_iters=max_iters, image_txns=txns)
+
+    for env in envs:
+        env.close()
+
     # Cleanup all but the final model
     for i in model_paths[:-1]:
         os.remove(i)

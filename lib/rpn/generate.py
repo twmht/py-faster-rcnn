@@ -10,6 +10,8 @@ from utils.blob import im_list_to_blob
 from utils.timer import Timer
 import numpy as np
 import cv2
+from skimage import io
+from io import BytesIO
 
 def _vis_proposals(im, dets, thresh=0.5):
     """Draw detected bounding boxes."""
@@ -96,22 +98,26 @@ def im_proposals(net, im):
     scores = blobs_out['scores'].copy()
     return boxes, scores
 
-def imdb_proposals(net, imdb):
+def imdb_proposals(net, imdb, txns):
     """Generate RPN proposals on all images in an imdb."""
 
     _t = Timer()
     imdb_boxes = [[] for _ in xrange(imdb.num_images)]
-    for i in xrange(imdb.num_images):
-        im = cv2.imread(imdb.image_path_at(i))
-        _t.tic()
-        imdb_boxes[i], scores = im_proposals(net, im)
-        _t.toc()
-        print 'im_proposals: {:d}/{:d} {:.3f}s' \
-              .format(i + 1, imdb.num_images, _t.average_time)
-        if 0:
-            dets = np.hstack((imdb_boxes[i], scores))
-            # from IPython import embed; embed()
-            _vis_proposals(im, dets[:3, :], thresh=0.9)
-            plt.show()
+    i = 0
+    for db_name, indexes in imdb.image_index.iteritems():
+        for index in indexes:
+            im = io.imread(BytesIO(txns[db_name].get(index)))
+            im = im[:,:,::-1]
+            _t.tic()
+            imdb_boxes[i], scores = im_proposals(net, im)
+            _t.toc()
+            print 'im_proposals: {:d}/{:d} {:.3f}s' \
+                  .format(i + 1, imdb.num_images, _t.average_time)
+            i = i + 1
+            if 0:
+                dets = np.hstack((imdb_boxes[i], scores))
+                # from IPython import embed; embed()
+                _vis_proposals(im, dets[:3, :], thresh=0.9)
+                plt.show()
 
     return imdb_boxes

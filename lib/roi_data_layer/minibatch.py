@@ -9,11 +9,12 @@
 
 import numpy as np
 import numpy.random as npr
-import cv2
 from fast_rcnn.config import cfg
 from utils.blob import prep_im_for_blob, im_list_to_blob
+from io import BytesIO
+from skimage import io
 
-def get_minibatch(roidb, num_classes):
+def get_minibatch(roidb, num_classes, txns):
     """Given a roidb, construct a minibatch sampled from it."""
     num_images = len(roidb)
     # Sample random scales to use for each image in this batch
@@ -26,7 +27,7 @@ def get_minibatch(roidb, num_classes):
     fg_rois_per_image = np.round(cfg.TRAIN.FG_FRACTION * rois_per_image)
 
     # Get the input image blob, formatted for caffe
-    im_blob, im_scales = _get_image_blob(roidb, random_scale_inds)
+    im_blob, im_scales = _get_image_blob(roidb, random_scale_inds, txns)
 
     blobs = {'data': im_blob}
 
@@ -126,7 +127,7 @@ def _sample_rois(roidb, fg_rois_per_image, rois_per_image, num_classes):
 
     return labels, overlaps, rois, bbox_targets, bbox_inside_weights
 
-def _get_image_blob(roidb, scale_inds):
+def _get_image_blob(roidb, scale_inds, txns):
     """Builds an input blob from the images in the roidb at the specified
     scales.
     """
@@ -134,7 +135,10 @@ def _get_image_blob(roidb, scale_inds):
     processed_ims = []
     im_scales = []
     for i in xrange(num_images):
-        im = cv2.imread(roidb[i]['image'])
+        db_name = roidb[i]['db_name']
+        index = roidb[i]['image']
+        im = io.imread(BytesIO(txns[db_name].get(index)))
+        im = im[:,:,::-1]
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
