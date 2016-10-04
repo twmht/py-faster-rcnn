@@ -89,11 +89,12 @@ class common(imdb):
         assert os.path.exists(self._annotation_loc), \
                 'Path does not exist: {}'.format(self._annotation_loc)
 
-        for db_name in os.listdir(self._image_loc):
+        for db_name in os.listdir(self._index_loc):
+            db_name = db_name[0:-4]
             self._db_names.append(db_name)
 
-            image_index_loc = os.path.join(self._index_loc, db_name + '.txt')
-            assert os.path.exists(image_index_loc), \
+            image_loc = os.path.join(self._image_loc, db_name)
+            assert os.path.exists(image_loc), \
                 'Path does not exist: {}'.format(image_index_loc)
 
             annotation_loc = os.path.join(self._annotation_loc, db_name)
@@ -146,7 +147,6 @@ class common(imdb):
                     roi = self._load_pascal_annotation(value)
                     roi['db_name'] = db_name
                     roi['image'] = index
-                    print roi
                     gt_roidb.append(roi)
             env.close()
 
